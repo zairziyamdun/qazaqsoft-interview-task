@@ -108,7 +108,17 @@ class QuizEngine {
 
   tick() {
     // TODO: декремент таймера; если 0 — завершить тест
-    throw new Error("Not implemented: QuizEngine.tick");
+    if (this.isFinished) return false;
+
+    this.remainingSec = Math.max(0, this.remainingSec - 1);
+  
+    if (this.remainingSec === 0) {
+      this.finish();
+      return true;
+    }
+  
+    return false;
+  
   }
 
   finish() {
@@ -192,6 +202,8 @@ const els = {
   resultSummary: $("#result-summary"),
   btnReview: $("#btn-review"),
   btnRestart: $("#btn-restart"),
+  // добавил actions для переключения режима просмотра ответов
+  actions: document.querySelector(".actions"),
 };
 
 let engine = /** @type {QuizEngine|null} */ (null);
@@ -231,17 +243,24 @@ async function loadQuiz() {
 // ========== Таймер ==========
 function startTimer() {
   stopTimer();
+  
   timerId = window.setInterval(() => {
-    try {
-      engine.tick();
-      persist();
-      renderTimer();
-    } catch (e) {
-      // До реализации tick() попадём сюда — это нормально для шаблона.
+    const finishedByTimer = engine.tick();
+
+    persist();
+    renderTimer();
+
+    if (finishedByTimer) {
       stopTimer();
+    
+      const summary = engine.finish();
+
+      renderResult(summary);
+      renderNav();
     }
   }, 1000);
 }
+
 function stopTimer() {
   if (timerId) {
     clearInterval(timerId);
@@ -274,6 +293,10 @@ function bindEvents() {
 
   els.btnReview.addEventListener("click", () => {
     reviewMode = true;
+
+    els.qSection.classList.remove("hidden");
+    els.actions.classList.remove("hidden");
+  
     renderAll();
   });
 
@@ -371,6 +394,8 @@ function renderNav() {
 
 function renderResult(summary) {
   els.result.classList.remove("hidden");
+  els.qSection.classList.add("hidden");
+  els.actions.classList.add("hidden");
 
   const status = summary.passed ? "Пройден" : "Не пройден";
 
