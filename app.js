@@ -142,13 +142,37 @@ class QuizEngine {
   /** Восстановление/выгрузка состояния для localStorage */
   toState() {
     // TODO: вернуть сериализуемый снимок состояния
-    throw new Error("Not implemented: QuizEngine.toState");
+    return {
+      currentIndex: this.currentIndex,
+      answers: this.answers,
+      remainingSec: this.remainingSec,
+      isFinished: this.isFinished,
+    };
   }
 
   /** @param {any} state */
   static fromState(quiz, state) {
     // TODO: создать двигатель на базе сохранённого состояния
-    throw new Error("Not implemented: QuizEngine.fromState");
+    const engine = new QuizEngine(quiz);
+
+    if (!state) return engine;
+  
+    engine.currentIndex = Number.isInteger(state.currentIndex)
+      ? state.currentIndex
+      : 0;
+  
+    engine.answers =
+      state.answers && typeof state.answers === "object"
+        ? state.answers
+        : {};
+  
+    engine.remainingSec = Number.isFinite(state.remainingSec)
+      ? state.remainingSec
+      : quiz.timeLimitSec;
+  
+    engine.isFinished = Boolean(state.isFinished);
+  
+    return engine;
   }
 }
 
