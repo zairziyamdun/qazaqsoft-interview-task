@@ -74,28 +74,36 @@ class QuizEngine {
   /** @param {number} index */
   goTo(index) {
     // TODO: валидировать границы и сменить текущий индекс
-    throw new Error("Not implemented: QuizEngine.goTo");
+    if(index < 0 || index >= this.questions.length) return;
+  
+    this.currentIndex = index;
   }
 
   next() {
     // TODO: перейти к следующему вопросу, если возможно
-    throw new Error("Not implemented: QuizEngine.next");
+    this.goTo(this.currentIndex + 1);
   }
 
   prev() {
     // TODO: перейти к предыдущему вопросу, если возможно
-    throw new Error("Not implemented: QuizEngine.prev");
+    this.goTo(this.currentIndex - 1);
   }
 
   /** @param {number} optionIndex */
   select(optionIndex) {
     // TODO: сохранить выбор пользователя для текущего вопроса
-    throw new Error("Not implemented: QuizEngine.select");
+    if (this.isFinished) return;
+  
+    const question = this.currentQuestion;
+
+    this.answers[question.id] = optionIndex;
   }
 
   getSelectedIndex() {
     // TODO: вернуть выбранный индекс для текущего вопроса (или undefined)
-    throw new Error("Not implemented: QuizEngine.getSelectedIndex");
+    const question = this.currentQuestion;
+
+    return this.answers[question.id];
   }
 
   tick() {
@@ -106,7 +114,29 @@ class QuizEngine {
   finish() {
     // TODO: зафиксировать завершение и вернуть сводку результата
     // return { correct: number, total: number, percent: number, passed: boolean }
-    throw new Error("Not implemented: QuizEngine.finish");
+    this.isFinished = true;
+
+    let correct = 0;
+  
+    this.questions.forEach((question) => {
+      const selectedIndex = this.answers[question.id];
+  
+      if (selectedIndex === question.correctIndex) {
+        correct++;
+      }
+    });
+  
+    const total = this.questions.length;
+    const ratio = total > 0 ? correct / total : 0;
+    const percent = Math.round(ratio * 100);
+    const passed = ratio >= this.passThreshold;
+  
+    return {
+      correct,
+      total,
+      percent,
+      passed,
+    };
   }
 
   /** Восстановление/выгрузка состояния для localStorage */
@@ -304,22 +334,23 @@ function renderQuestion() {
   });
 }
 
+
+// сделал более понятным renderNav()
 function renderNav() {
-  const hasSelection = Number.isInteger(engine.getSelectedIndex?.());
+  const selectedIndex = engine.getSelectedIndex();
+  const hasSelection = selectedIndex !== undefined;
+
   els.btnPrev.disabled = engine.currentIndex === 0;
-  els.btnNext.disabled = !(
-    engine.currentIndex < engine.length - 1 && hasSelection
-  );
-  els.btnFinish.disabled = !(
-    engine.currentIndex === engine.length - 1 && hasSelection
-  );
+  els.btnNext.disabled = engine.currentIndex >= engine.length - 1 || !hasSelection;
+  els.btnFinish.disabled = engine.currentIndex !== engine.length - 1 || !hasSelection;
 }
 
 function renderResult(summary) {
   els.result.classList.remove("hidden");
-  const pct = Math.round(summary.percent * 100);
+
   const status = summary.passed ? "Пройден" : "Не пройден";
-  els.resultSummary.textContent = `${summary.correct} / ${summary.total} (${pct}%) — ${status}`;
+
+  els.resultSummary.textContent = `${summary.correct} / ${summary.total} (${summary.percent}%) — ${status}`;
 }
 
 // ========== Persist ==========
