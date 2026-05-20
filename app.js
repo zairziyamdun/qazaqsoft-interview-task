@@ -1,10 +1,8 @@
-// ========== Константы и ключи хранилища ==========
 const STORAGE_KEYS = {
   STATE: "quiz.state.v1",
 };
 const DATA_URL = "./data/questions.json";
 
-// ========== Модели ==========
 /**
  * @typedef {{ id: string; text: string; options: string[]; correctIndex: number; topic?: string }} QuestionDTO
  * @typedef {{ title: string; timeLimitSec: number; passThreshold: number; questions: QuestionDTO[] }} QuizDTO
@@ -21,34 +19,28 @@ class Question {
   }
 }
 
-// ========== Сервисы ==========
 class StorageService {
   static saveState(state) {
-    // TODO: сериализовать state и сохранить в localStorage
     localStorage.setItem(STORAGE_KEYS.STATE, JSON.stringify(state));
   }
 
   static loadState() {
     const raw = localStorage.getItem(STORAGE_KEYS.STATE);
+    if (!raw) return null;
 
-    if(!raw) return null;
-    
-    try{
+    try {
       return JSON.parse(raw);
-    }catch{
+    } catch {
       localStorage.removeItem(STORAGE_KEYS.STATE);
       return null;
     }
-
   }
 
   static clear() {
-    // TODO: очистить сохранённое состояни
     localStorage.removeItem(STORAGE_KEYS.STATE);
   }
 }
 
-// ========== Движок теста ==========
 class QuizEngine {
   /** @param {QuizDTO} quiz */
   constructor(quiz) {
@@ -59,7 +51,7 @@ class QuizEngine {
 
     this.currentIndex = 0;
     /** @type {Record<string, number|undefined>} */
-    this.answers = {}; // questionId -> selectedIndex
+    this.answers = {};
     this.remainingSec = quiz.timeLimitSec;
     this.isFinished = false;
   }
@@ -67,91 +59,71 @@ class QuizEngine {
   get length() {
     return this.questions.length;
   }
+
   get currentQuestion() {
     return this.questions[this.currentIndex];
   }
 
   /** @param {number} index */
   goTo(index) {
-    // TODO: валидировать границы и сменить текущий индекс
-    if(index < 0 || index >= this.questions.length) return;
-  
+    if (index < 0 || index >= this.questions.length) return;
     this.currentIndex = index;
   }
 
   next() {
-    // TODO: перейти к следующему вопросу, если возможно
     this.goTo(this.currentIndex + 1);
   }
 
   prev() {
-    // TODO: перейти к предыдущему вопросу, если возможно
     this.goTo(this.currentIndex - 1);
   }
 
   /** @param {number} optionIndex */
   select(optionIndex) {
-    // TODO: сохранить выбор пользователя для текущего вопроса
     if (this.isFinished) return;
-  
     const question = this.currentQuestion;
-
     this.answers[question.id] = optionIndex;
   }
 
   getSelectedIndex() {
-    // TODO: вернуть выбранный индекс для текущего вопроса (или undefined)
     const question = this.currentQuestion;
-
     return this.answers[question.id];
   }
 
   tick() {
-    // TODO: декремент таймера; если 0 — завершить тест
     if (this.isFinished) return false;
 
     this.remainingSec = Math.max(0, this.remainingSec - 1);
-  
+
     if (this.remainingSec === 0) {
       this.finish();
       return true;
     }
-  
+
     return false;
-  
   }
 
   finish() {
-    // TODO: зафиксировать завершение и вернуть сводку результата
-    // return { correct: number, total: number, percent: number, passed: boolean }
     this.isFinished = true;
 
     let correct = 0;
-  
+
     this.questions.forEach((question) => {
       const selectedIndex = this.answers[question.id];
-  
       if (selectedIndex === question.correctIndex) {
         correct++;
       }
     });
-  
+
     const total = this.questions.length;
     const ratio = total > 0 ? correct / total : 0;
     const percent = Math.round(ratio * 100);
     const passed = ratio >= this.passThreshold;
-  
-    return {
-      correct,
-      total,
-      percent,
-      passed,
-    };
+
+    return { correct, total, percent, passed };
   }
 
-  /** Восстановление/выгрузка состояния для localStorage */
   toState() {
-    // TODO: вернуть сериализуемый снимок состояния
     return {
       currentIndex: this.currentIndex,
       answers: this.answers,
@@ -162,31 +134,26 @@ class QuizEngine {
 
   /** @param {any} state */
   static fromState(quiz, state) {
-    // TODO: создать двигатель на базе сохранённого состояния
     const engine = new QuizEngine(quiz);
-
     if (!state) return engine;
-  
+
     engine.currentIndex = Number.isInteger(state.currentIndex)
       ? state.currentIndex
       : 0;
-  
+
     engine.answers =
-      state.answers && typeof state.answers === "object"
-        ? state.answers
-        : {};
-  
+      state.answers && typeof state.answers === "object" ? state.answers : {};
+
     engine.remainingSec = Number.isFinite(state.remainingSec)
       ? state.remainingSec
       : quiz.timeLimitSec;
-  
+
     engine.isFinished = Boolean(state.isFinished);
-  
+
     return engine;
   }
 }
 
-// ========== DOM-утилиты ==========
 const $ = (sel) => /** @type {HTMLElement} */ (document.querySelector(sel));
 const els = {
   title: $("#quiz-title"),
@@ -202,7 +169,6 @@ const els = {
   resultSummary: $("#result-summary"),
   btnReview: $("#btn-review"),
   btnRestart: $("#btn-restart"),
-  // добавил actions для переключения режима просмотра ответов
   actions: document.querySelector(".actions"),
 };
 
@@ -210,40 +176,33 @@ let engine = /** @type {QuizEngine|null} */ (null);
 let timerId = /** @type {number|undefined} */ (undefined);
 let reviewMode = false;
 
-// ========== Инициализация ==========
 document.addEventListener("DOMContentLoaded", async () => {
   const quiz = await loadQuiz();
   els.title.textContent = quiz.title;
 
-  const saved = StorageService.loadState?.(); // заглушка
-  if (saved) {
-    engine = QuizEngine.fromState(quiz, saved);
-  } else {
-    engine = new QuizEngine(quiz);
-  }
+  const saved = StorageService.loadState();
+  engine = saved ? QuizEngine.fromState(quiz, saved) : new QuizEngine(quiz);
 
   bindEvents();
   renderAll();
-
   startTimer();
 });
 
 async function loadQuiz() {
-  // Загружаем JSON с вопросами
   const res = await fetch(DATA_URL);
   /** @type {QuizDTO} */
   const data = await res.json();
-  // Простейшая валидация формата (можно расширить)
+
   if (!data?.questions?.length) {
     throw new Error("Некорректные данные теста");
   }
+
   return data;
 }
 
-// ========== Таймер ==========
 function startTimer() {
   stopTimer();
-  
+
   timerId = window.setInterval(() => {
     const finishedByTimer = engine.tick();
 
@@ -252,9 +211,8 @@ function startTimer() {
 
     if (finishedByTimer) {
       stopTimer();
-    
-      const summary = engine.finish();
 
+      const summary = engine.finish();
       renderResult(summary);
       renderNav();
     }
@@ -268,22 +226,21 @@ function stopTimer() {
   }
 }
 
-// ========== События ==========
 function bindEvents() {
   els.btnPrev.addEventListener("click", () => {
-    safeCall(() => engine.prev());
+    engine.prev();
     persist();
     renderAll();
   });
 
   els.btnNext.addEventListener("click", () => {
-    safeCall(() => engine.next());
+    engine.next();
     persist();
     renderAll();
   });
 
   els.btnFinish.addEventListener("click", () => {
-    const summary = safeCall(() => engine.finish());
+    const summary = engine.finish();
     if (summary) {
       stopTimer();
       renderResult(summary);
@@ -293,15 +250,13 @@ function bindEvents() {
 
   els.btnReview.addEventListener("click", () => {
     reviewMode = true;
-
     els.qSection.classList.remove("hidden");
     els.actions.classList.remove("hidden");
-  
     renderAll();
   });
 
   els.btnRestart.addEventListener("click", () => {
-    StorageService.clear?.();
+    StorageService.clear();
     window.location.reload();
   });
 
@@ -309,22 +264,13 @@ function bindEvents() {
     const target = /** @type {HTMLInputElement} */ (e.target);
     if (target?.name === "option") {
       const idx = Number(target.value);
-      safeCall(() => engine.select(idx));
+      engine.select(idx);
       persist();
       renderNav();
     }
   });
 }
 
-function safeCall(fn) {
-  try {
-    return fn?.();
-  } catch {
-    /* noop в шаблоне */
-  }
-}
-
-// ========== Рендер ==========
 function renderAll() {
   renderProgress();
   renderTimer();
@@ -333,9 +279,7 @@ function renderAll() {
 }
 
 function renderProgress() {
-  els.progress.textContent = `Вопрос ${engine.currentIndex + 1} из ${
-    engine.length
-  }`;
+  els.progress.textContent = `Вопрос ${engine.currentIndex + 1} из ${engine.length}`;
 }
 
 function renderTimer() {
@@ -358,11 +302,13 @@ function renderQuestion() {
     const id = `opt-${q.id}-${i}`;
     const wrapper = document.createElement("label");
     wrapper.className = "option";
+
     if (reviewMode) {
       const chosen = engine.answers[q.id];
       if (i === q.correctIndex) wrapper.classList.add("correct");
-      if (chosen === i && i !== q.correctIndex)
+      if (chosen === i && i !== q.correctIndex) {
         wrapper.classList.add("incorrect");
+      }
     }
 
     const input = document.createElement("input");
@@ -370,7 +316,7 @@ function renderQuestion() {
     input.name = "option";
     input.value = String(i);
     input.id = id;
-    input.checked = engine.getSelectedIndex?.() === i;
+    input.checked = engine.getSelectedIndex() === i;
 
     const span = document.createElement("span");
     span.textContent = opt;
@@ -381,15 +327,15 @@ function renderQuestion() {
   });
 }
 
-
-// сделал более понятным renderNav()
 function renderNav() {
   const selectedIndex = engine.getSelectedIndex();
   const hasSelection = selectedIndex !== undefined;
 
   els.btnPrev.disabled = engine.currentIndex === 0;
-  els.btnNext.disabled = engine.currentIndex >= engine.length - 1 || !hasSelection;
-  els.btnFinish.disabled = engine.currentIndex !== engine.length - 1 || !hasSelection;
+  els.btnNext.disabled =
+    engine.currentIndex >= engine.length - 1 || !hasSelection;
+  els.btnFinish.disabled =
+    engine.currentIndex !== engine.length - 1 || !hasSelection;
 }
 
 function renderResult(summary) {
@@ -398,16 +344,9 @@ function renderResult(summary) {
   els.actions.classList.add("hidden");
 
   const status = summary.passed ? "Пройден" : "Не пройден";
-
   els.resultSummary.textContent = `${summary.correct} / ${summary.total} (${summary.percent}%) — ${status}`;
 }
 
-// ========== Persist ==========
 function persist() {
-  try {
-    const snapshot = engine.toState?.();
-    if (snapshot) StorageService.saveState(snapshot);
-  } catch {
-    /* noop в шаблоне */
-  }
+  StorageService.saveState(engine.toState());
 }
