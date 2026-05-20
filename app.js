@@ -256,8 +256,11 @@ function bindEvents() {
 
   els.btnReview.addEventListener("click", () => {
     reviewMode = true;
+
     els.qSection.classList.remove("hidden");
     els.actions.classList.remove("hidden");
+    els.btnReview.classList.add("hidden");
+
     renderAll();
   });
 
@@ -348,9 +351,12 @@ function renderResult(summary) {
   els.result.classList.remove("hidden");
   els.qSection.classList.add("hidden");
   els.actions.classList.add("hidden");
+  els.btnReview.classList.remove("hidden");
 
   const status = summary.passed ? "Пройден" : "Не пройден";
-  els.resultSummary.textContent = `${summary.correct} / ${summary.total} (${summary.percent}%) — ${status}`;
+
+  els.resultSummary.textContent =
+    `${summary.correct} / ${summary.total} (${summary.percent}%) — ${status}`;
 }
 
 function persist() {
