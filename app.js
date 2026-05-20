@@ -184,8 +184,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   engine = saved ? QuizEngine.fromState(quiz, saved) : new QuizEngine(quiz);
 
   bindEvents();
-  renderAll();
-  startTimer();
+
+  if (engine.isFinished) {
+    const summary = engine.finish();
+    renderResult(summary);
+  } else {
+    renderAll();
+    startTimer();
+  }
 });
 
 async function loadQuiz() {
